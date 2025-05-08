@@ -1,48 +1,33 @@
-import pandas as pd
-
-def match_farmer_driver(farmer_data, driver_data):
-    # Check quantity vs. capacity
+def match_farmer_driver(farmer, driver):
+    # --- Capacity check ---
     try:
-        quantity = int(farmer_data['Quantity'])
+        quantity = int(farmer['Quantity'])
     except:
         quantity = 0
 
     try:
-        capacity = int(driver_data['Capacity (kg)'])
+        capacity = int(driver['Capacity (kg)'])
     except:
         capacity = 0
 
     capacity_ok = quantity <= capacity
 
-    # Check date availability
-    date_match = (farmer_data['Urgency'] == "High") or (farmer_data['Date Ready'].strftime("%A") == driver_data['Available Date'])
+    # --- Location check ---
+    location_match = farmer['Location'].lower() in (driver['Origin'].lower() + " " + driver['Destination'].lower())
 
-    # Check route match (very basic for now)
-    location_match = farmer_data['Location'].capitalize() in driver_data['Route']
+    # --- Crop preference check ---
+    crop_match = farmer['Crop'].lower() in driver['Preferred Crop'].lower() or driver['Preferred Crop'] == "Any"
 
-    # Check crop match (optional, skip if unknown)
-    crop_match = (farmer_data['Crop'].lower() in driver_data['Preferred Crop'].lower()) or driver_data['Preferred Crop'] == "Unknown"
+    # --- Date match ---
+    date_match = str(farmer['Date Ready']) == str(driver['Date Available'])
 
-    # Final decision
-    if capacity_ok and date_match and location_match and crop_match:
-        return True
-    else:
-        return False
+    # --- Time match (basic for now: must be exactly same hour) ---
+    farmer_time = str(farmer.get('Time Ready'))
+    driver_time = str(driver.get('Time Available'))
+    time_match = farmer_time == driver_time or farmer_time in driver_time or driver_time in farmer_time
 
-farmer_data = {
-    "Crop": "tomatoes",
-    "Quantity": "300",
-    "Urgency": "Normal",
-    "Location": "Musanze",
-    "Date Ready": pd.to_datetime("2024-05-09")  # Example date
-}
+    # --- Urgency (optional for MVP) ---
+    urgency_ok = True  # You can later add logic for urgency prioritization
 
-driver_data = {
-    "Capacity (kg)": "500",
-    "Route": "Musanze to Kigali",
-    "Preferred Crop": "tomatoes",
-    "Available Date": "Thursday"
-}
-
-matched = match_farmer_driver(farmer_data, driver_data)
-print("Match found?" , matched)
+    # --- Final decision ---
+    return capacity_ok and location_match and crop_match and date_match and time_match and urgency_ok
